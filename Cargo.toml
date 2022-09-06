@@ -8,7 +8,20 @@ license = "MIT"
 homepage = "https://next.id"
 repository = "https://github.com/nextdotid/sdk_rust"
 
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
+# General
+thiserror = "1.0"
+
+# HTTP client
+hyper = { version = "0.14", features = ["client", "http2"]}
+
+# Crypto
+rand = "0.8"
+libsecp256k1 = "0.7"
+sha3 = "0.10" # Keccak256
+base64 = "0.13"
+hex = "0.4"
+hex-literal = "0.3"
+
+[dev-dependencies]
+tokio = { version = "1.21", features = ["full"] }

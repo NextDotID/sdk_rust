@@ -1,14 +1,13 @@
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
-}
+/// Crypto-related helper functions
+pub mod crypto;
+/// KVService: Storage for each ProofService connection record.
+/// See also: [Docs](https://docs.next.id/kv-service/kv-intro)
+pub mod kv_service;
+/// ProofService: Build a trustable connection between 2 identities.
+/// See also: [Docs](https://docs.next.id/proof-service/ps-intro)
+pub mod proof_service;
+/// Types
+pub mod types;
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+/// Internal utilities
+pub mod util;
