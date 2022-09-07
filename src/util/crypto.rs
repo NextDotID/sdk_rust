@@ -4,7 +4,7 @@ use crate::{
     types::{Error, Result},
     util::{hex_decode, keccak256_hash},
 };
-use libsecp256k1::{Message, PublicKey, SecretKey, Signature, RecoveryId};
+use libsecp256k1::{Message, PublicKey, RecoveryId, SecretKey, Signature};
 
 /// secp256k1 public / secret key pair in a struct.
 pub struct Secp256k1KeyPair {
@@ -18,7 +18,7 @@ impl Secp256k1KeyPair {
     /// Generate a keypair.
     /// # Examples
     /// ```rust
-    /// # use nextid_sdk::crypto::Secp256k1KeyPair;
+    /// # use nextid_sdk::util::crypto::Secp256k1KeyPair;
     /// let mut rng = rand::rngs::OsRng;
     /// let keypair = Secp256k1KeyPair::generate(&mut rng);
     /// # assert!(keypair.sk.is_some())
@@ -38,7 +38,7 @@ impl Secp256k1KeyPair {
     /// # Examples
     ///
     /// ```rust
-    /// # use nextid_sdk::crypto::Secp256k1KeyPair;
+    /// # use nextid_sdk::util::crypto::Secp256k1KeyPair;
     /// # use hex_literal::hex;
     /// # let pk_hex = "0x04c7cacde73af939c35d527b34e0556ea84bab27e6c0ed7c6c59be70f6d2db59c206b23529977117dc8a5d61fa848f94950422b79d1c142bcf623862e49f9e6575";
     /// let pair = Secp256k1KeyPair::from_pk_hex(pk_hex).unwrap();
@@ -60,7 +60,7 @@ impl Secp256k1KeyPair {
     /// # Examples
     ///
     /// ```rust
-    /// # use nextid_sdk::crypto::Secp256k1KeyPair;
+    /// # use nextid_sdk::util::crypto::Secp256k1KeyPair;
     /// # use hex_literal::hex;
     /// # let pk: Vec<u8> = hex!("04c7cacde73af939c35d527b34e0556ea84bab27e6c0ed7c6c59be70f6d2db59c206b23529977117dc8a5d61fa848f94950422b79d1c142bcf623862e49f9e6575").into();
     /// let pair = Secp256k1KeyPair::from_pk_vec(&pk).unwrap();
@@ -73,21 +73,70 @@ impl Secp256k1KeyPair {
         Ok(Self { pk, sk: None })
     }
 
+    /// Generate a Keypair struct by given SecretKey.
+    /// # Examples
+    /// ```rust
+    /// # use nextid_sdk::util::crypto::Secp256k1KeyPair;
+    /// # use hex_literal::hex;
+    /// # use libsecp256k1::SecretKey;
+    /// #
+    /// # let secret_key = SecretKey::parse(&hex!("b5466835b2228927d8dc1194cf8e6f52ba4b4cdb49cc954f31565d0c30fd44c8")).unwrap();
+    /// let keypair = Secp256k1KeyPair::from_sk(secret_key);
+    /// ```
+    pub fn from_sk(sk: SecretKey) -> Self {
+        Self {
+            pk: PublicKey::from_secret_key(&sk),
+            sk: Some(sk),
+        }
+    }
+
+    /// Generate a Keypair struct by given SecretKey hexstring (`[a-f0-9]{64}`, with or without `0x`).
+    /// # Examples
+    /// ```rust
+    /// # use nextid_sdk::util::crypto::Secp256k1KeyPair;
+    /// # use hex_literal::hex;
+    /// # use libsecp256k1::SecretKey;
+    /// #
+    /// # let secret_key_hexstring = "b5466835b2228927d8dc1194cf8e6f52ba4b4cdb49cc954f31565d0c30fd44c8";
+    /// let keypair = Secp256k1KeyPair::from_sk_hex(secret_key_hexstring);
+    /// ```
+    pub fn from_sk_hex(sk_hex: &str) -> Result<Self> {
+        let hex = if sk_hex.starts_with("0x") {
+            &sk_hex[2..]
+        } else {
+            sk_hex
+        };
+        let sk_bytes = hex_decode(hex)?;
+        Self::from_sk_vec(sk_bytes)
+    }
+
+    /// Generate a Keypair struct by given SecretKey byte vec.
+    pub fn from_sk_vec(sk_vec: Vec<u8>) -> Result<Self> {
+        let sk = SecretKey::parse_slice(sk_vec.as_slice())?;
+        let pk = PublicKey::from_secret_key(&sk);
+
+        Ok(Self { pk, sk: Some(sk) })
+    }
+
+    /// Regenerate public key from `sk` in this struct.
+    /// This will consume current struct and generate a new one.
+    pub fn refresh_pk(self) -> Self {
+        let sk = self.sk.unwrap();
+        let pk = PublicKey::from_secret_key(&sk);
+        Self { pk, sk: Some(sk) }
+    }
+
     /// `web3.eth.personal.sign`
     /// # Examples
     ///
     /// ```rust
-    /// # use nextid_sdk::crypto::Secp256k1KeyPair;
+    /// # use nextid_sdk::util::crypto::Secp256k1KeyPair;
     /// # use hex_literal::hex;
     /// # use libsecp256k1::{SecretKey, PublicKey};
     /// #
     /// let sign_payload = "Test123!";
-    /// # let secret_key = SecretKey::parse(&hex!("b5466835b2228927d8dc1194cf8e6f52ba4b4cdb49cc954f31565d0c30fd44c8")).unwrap();
     /// # let expected = hex!("bc14fed2a5ae2c5c7e793f2a45f4f9aad84c7caa56139ee4a802806c5bb1a9cf4baa0e2df71bf3d0a943fbfb177afc1bd9c17995a6f409928548f3318d3f9b6300");
-    /// # let keypair = Secp256k1KeyPair {
-    /// #     pk: PublicKey::from_secret_key(&secret_key),
-    /// #     sk: Some(secret_key),
-    /// # };
+    /// # let keypair = Secp256k1KeyPair::from_sk_hex("b5466835b2228927d8dc1194cf8e6f52ba4b4cdb49cc954f31565d0c30fd44c8").unwrap();
     /// let result = keypair.personal_sign(sign_payload).unwrap();
     /// # assert_eq!(expected, result.as_slice())
     /// ```
@@ -123,25 +172,16 @@ impl Secp256k1KeyPair {
 
     /// Recover pubkey from an `web3.eth.personal.sign` signature with given plaintext message.
     /// # Examples
-    ///
     /// ```rust
-    /// # use nextid_sdk::{crypto::Secp256k1KeyPair, util::base64_decode};
+    /// # use nextid_sdk::util::{crypto::Secp256k1KeyPair, base64_decode};
     /// # use hex_literal::hex;
     /// # use libsecp256k1::{SecretKey, PublicKey, verify};
     /// #
-    /// # let secret_key = SecretKey::parse(&hex!("b5466835b2228927d8dc1194cf8e6f52ba4b4cdb49cc954f31565d0c30fd44c8")).unwrap();
-    /// # let public_key = PublicKey::from_secret_key(&secret_key);
     /// let sign_payload = "Test123!";
-    /// # let keypair = Secp256k1KeyPair {
-    /// #   pk,
-    /// #   sk: Some(secret_key),
-    /// # };
+    /// # let keypair = Secp256k1KeyPair::from_sk_hex("b5466835b2228927d8dc1194cf8e6f52ba4b4cdb49cc954f31565d0c30fd44c8").unwrap();
     /// # let signature = keypair.personal_sign(sign_payload).unwrap();
-    /// # let sig = base64_decode(signature).unwrap();
-    /// # println!("{:?}", sig);
-    ///
-    /// let recovered_keypair = Secp256k1KeyPair::recover_from_personal_signature(&sig, &sign_payload).unwrap();
-    /// assert_eq!(recovered_keypair.pk, public_key);
+    /// let recovered_keypair = Secp256k1KeyPair::recover_from_personal_signature(&signature, sign_payload).unwrap();
+    /// assert_eq!(recovered_keypair.pk, keypair.pk);
     /// ```
     pub fn recover_from_personal_signature(
         sig_r_s_recovery: &Vec<u8>,
@@ -149,6 +189,8 @@ impl Secp256k1KeyPair {
     ) -> Result<Self> {
         let personal_payload = format!(
             "\x19Ethereum Signed Message:\n{}{}",
+            // Byte length, not Unicode code point count, which means:
+            // assert_eq!("🐴🐮🐱".len(), 12)
             plain_payload.len(),
             plain_payload
         );
@@ -173,9 +215,6 @@ impl Secp256k1KeyPair {
             &RecoveryId::parse(recovery_id).unwrap(),
         )?;
 
-        Ok(Self {
-            pk,
-            sk: None,
-        })
+        Ok(Self { pk, sk: None })
     }
 }

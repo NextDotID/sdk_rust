@@ -1,8 +1,12 @@
+/// Crypto-related helper functions
+pub mod crypto;
+/// HTTP-related helper functions
+pub(crate) mod http;
 #[cfg(test)]
 mod tests;
 
-use sha3::{Keccak256, Digest};
 use crate::types::Result;
+use sha3::{Digest, Keccak256};
 
 /// Encode a byte slice into hexstring (`[a-f0-9]+`).
 /// # Examples

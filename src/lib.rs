@@ -1,5 +1,3 @@
-/// Crypto-related helper functions
-pub mod crypto;
 /// KVService: Storage for each ProofService connection record.
 /// See also: [Docs](https://docs.next.id/kv-service/kv-intro)
 pub mod kv_service;

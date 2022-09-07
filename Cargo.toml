@@ -13,7 +13,14 @@ repository = "https://github.com/nextdotid/sdk_rust"
 thiserror = "1.0"
 
 # HTTP client
-hyper = { version = "0.14", features = ["client", "http2"]}
+# TODO: should not use "full" feature here: too heavy.
+hyper = { version = "0.14", features = ["full"] }
+hyper-tls = "*"
+tokio = { version = "1", features = ["full"] }
+http = "*"
+
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
 
 # Crypto
 rand = "0.8"
@@ -22,6 +29,3 @@ sha3 = "0.10" # Keccak256
 base64 = "0.13"
 hex = "0.4"
 hex-literal = "0.3"
-
-[dev-dependencies]
-tokio = { version = "1.21", features = ["full"] }
