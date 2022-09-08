@@ -4,7 +4,7 @@ use hyper::{body::HttpBody, client::HttpConnector, Body, Client, Method, Request
 use hyper_tls::HttpsConnector;
 use serde::Deserialize;
 
-pub async fn request<T>(method: Method, uri: http::Uri, request_body: Body) -> Result<T>
+pub async fn request<T>(method: Method, uri: &url::Url, request_body: Body) -> Result<T>
 where
     T: for<'de> Deserialize<'de>,
 {
@@ -13,7 +13,7 @@ where
         .request(
             Request::builder()
                 .method(method)
-                .uri(uri)
+                .uri(uri.to_string().parse::<http::Uri>().unwrap())
                 .header("Accept", "application/json")
                 .header("Content-Type", "application/json")
                 .header("User-Agent", "NextID-SDK-Rust/0.1.0")

@@ -18,6 +18,7 @@ hyper = { version = "0.14", features = ["full"] }
 hyper-tls = "*"
 tokio = { version = "1", features = ["full"] }
 http = "*"
+url = "2"
 
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"

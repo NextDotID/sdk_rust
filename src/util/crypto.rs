@@ -1,5 +1,3 @@
-use std::slice::SliceIndex;
-
 use crate::{
     types::{Error, Result},
     util::{hex_decode, keccak256_hash},
