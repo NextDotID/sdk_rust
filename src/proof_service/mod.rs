@@ -1,5 +1,7 @@
 mod types;
+pub use self::types::Platform;
 
+use self::types::Avatar;
 use crate::{types::Result, util::http::request};
 use http::Method;
 use hyper::Body;
@@ -37,18 +39,44 @@ impl Endpoint {
         Url::parse_with_params(&base, query).map_err(|e| e.into())
     }
 
-    /// Find a record by given platform and identity.
+    /// Fetch records by given `platform` and `identity`.
+    /// If `fetch_all == true`, fetch all records till pagination ends.
+    /// If not, only fetch first page of the results.
     /// # Examples
     /// ```rust
     /// # #[tokio::main]
     /// # async fn main() {
-    /// # use nextid_sdk::proof_service::Endpoint;
-    /// let staging = Endpoint::Staging;
-    /// let response = staging.find_by("twitter", "yeiwb", 1).await.unwrap();
-    /// # assert!(response.pagination.total > 0)
+    /// # use nextid_sdk::proof_service::{Endpoint, Platform};
+    /// let avatars = Endpoint::Staging.find_by(Platform::Twitter, "yeiwb", false).await.unwrap();
+    /// # assert!(avatars.len() > 0)
     /// # }
     /// ```
     pub async fn find_by(
+        &self,
+        platform: Platform,
+        identity: &str,
+        fetch_all: bool,
+    ) -> Result<Vec<Avatar>> {
+        let mut result: Vec<Avatar> = vec![];
+        let mut page: usize = 1;
+        loop {
+            let single_page = self
+                .find_by_single_page(&platform.to_string(), identity, page)
+                .await?;
+            single_page.ids.into_iter().for_each(|avatar| {
+                result.push(avatar.into());
+            });
+            if !fetch_all || (single_page.pagination.next == 0) {
+                break;
+            }
+            page += 1;
+        }
+
+        Ok(result)
+    }
+
+    /// Find a record by given platform and identity.
+    async fn find_by_single_page(
         &self,
         platform: &str,
         identity: &str,
@@ -62,7 +90,6 @@ impl Endpoint {
                 ("page", &page.to_string()),
             ],
         )?;
-
         request(Method::GET, &uri, Body::empty()).await
     }
 }

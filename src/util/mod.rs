@@ -6,6 +6,7 @@ pub(crate) mod http;
 mod tests;
 
 use crate::types::Result;
+use chrono::NaiveDateTime;
 use sha3::{Digest, Keccak256};
 
 /// Encode a byte slice into hexstring (`[a-f0-9]+`).
@@ -23,16 +24,22 @@ where
     hex::encode(byte_slice)
 }
 
-/// Decode a hexstring (`[a-f0-9]+`) to byte vec.
+/// Decode a hexstring (`[a-f0-9]+`, with or without `0x`) to byte vec.
 /// # Examples
 /// ```rust
 /// # use nextid_sdk::util::hex_decode;
-/// let hexstring = "01020304";
+/// let hexstring = "0x01020304";
 /// let expected: Vec<u8> = vec![1, 2, 3, 4];
 /// assert_eq!(expected, hex_decode(hexstring).unwrap());
 /// ```
 pub fn hex_decode(hexstring: &str) -> Result<Vec<u8>> {
-    hex::decode(hexstring).map_err(|e| e.into())
+    let hex: &str = if hexstring.starts_with("0x") {
+        &hexstring[2..]
+    } else {
+        hexstring
+    };
+
+    hex::decode(hex).map_err(|e| e.into())
 }
 
 /// Encode a byte slice into Base64.
@@ -65,7 +72,7 @@ pub fn base64_decode(base64_string: &str) -> Result<Vec<u8>> {
 }
 
 /// Keccak256(message)
-/// # Example
+/// # Examples
 /// ```rust
 /// # use nextid_sdk::crypto::hash_keccak256;
 /// # use hex_literal::hex;
@@ -78,4 +85,22 @@ pub fn keccak256_hash(message: &str) -> [u8; 32] {
     let mut hasher = Keccak256::default();
     hasher.update(message);
     hasher.finalize().into()
+}
+
+/// Parse `String` type, second-based timestamp to NaiveDateTime
+/// Convert timestamp string (unit: second) to [NaiveDateTime](chrono::NaiveDateTime).
+/// # Examples
+/// ```rust
+/// # use nextid_sdk::util::ts_string_to_naive;
+/// let naive_dt = ts_string_to_naive("1662708890");
+/// # assert_eq!(2022, naive_dt.year());
+/// ```
+pub fn ts_string_to_naive(timestamp: &str) -> Result<NaiveDateTime> {
+    let timestamp: i64 = timestamp.parse()?;
+    Ok(ts_to_naive(timestamp, 0))
+}
+
+/// Convert timestamp into NaiveDateTime struct.
+pub fn ts_to_naive(seconds: i64, ms: u32) -> NaiveDateTime {
+    NaiveDateTime::from_timestamp(seconds, ms * 1000000)
 }

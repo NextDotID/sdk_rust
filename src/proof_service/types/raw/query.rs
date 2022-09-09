@@ -1,4 +1,5 @@
-use super::Platform;
+use crate::proof_service::types::Platform;
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize)]
@@ -19,18 +20,18 @@ pub struct Request {
 #[derive(Deserialize)]
 pub struct Response {
     pub pagination: Pagination,
-    pub ids: Vec<ResponseSingleAvatar>,
+    pub ids: Vec<AvatarWithProof>,
 }
 
 #[derive(Deserialize)]
-pub struct ResponseSingleAvatar {
+pub struct AvatarWithProof {
     pub avatar: String,
     pub last_arweave_id: String,
-    pub proofs: Vec<ResponseSingleProof>,
+    pub proofs: Vec<SingleProof>,
 }
 
 #[derive(Deserialize)]
-pub struct ResponseSingleProof {
+pub struct SingleProof {
     pub platform: Platform,
     pub identity: String,
     pub created_at: String,
