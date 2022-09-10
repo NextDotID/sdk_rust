@@ -1,5 +1,8 @@
+mod procedure;
 mod types;
+pub use self::types::Action;
 pub use self::types::Platform;
+pub use procedure::{ProcedureStatus, ProofProcedure};
 
 use self::types::Avatar;
 use crate::{types::Result, util::http::request};
@@ -22,23 +25,6 @@ pub enum Endpoint {
 }
 
 impl Endpoint {
-    /// Concat server API URL.
-    fn uri<I, K, V>(&self, path: &str, query: I) -> Result<Url>
-    where
-        I: IntoIterator,
-        I::Item: Borrow<(K, V)>,
-        K: AsRef<str>,
-        V: AsRef<str>,
-    {
-        use Endpoint::*;
-        let base = match self {
-            Production => format!("https://proof-service.next.id/{}", path),
-            Staging => format!("https://proof-service.nextnext.id/{}", path),
-            Custom(url) => format!("{}/{}", url, path),
-        };
-        Url::parse_with_params(&base, query).map_err(|e| e.into())
-    }
-
     /// Fetch records by given `platform` and `identity`.
     /// If `fetch_all == true`, fetch all records till pagination ends.
     /// If not, only fetch first page of the results.
@@ -91,5 +77,22 @@ impl Endpoint {
             ],
         )?;
         request(Method::GET, &uri, Body::empty()).await
+    }
+
+    /// Concat server API URL.
+    fn uri<I, K, V>(&self, path: &str, query: I) -> Result<Url>
+    where
+        I: IntoIterator,
+        I::Item: Borrow<(K, V)>,
+        K: AsRef<str>,
+        V: AsRef<str>,
+    {
+        use Endpoint::*;
+        let base = match self {
+            Production => format!("https://proof-service.next.id/{}", path),
+            Staging => format!("https://proof-service.nextnext.id/{}", path),
+            Custom(url) => format!("{}/{}", url, path),
+        };
+        Url::parse_with_params(&base, query).map_err(|e| e.into())
     }
 }

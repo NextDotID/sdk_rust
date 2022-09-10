@@ -6,6 +6,17 @@ use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumString};
 
+/// All actios available when modifying ProofChain.
+#[derive(Serialize, Deserialize, Clone, Display, EnumString, Eq, PartialEq)]
+pub enum Action {
+    #[serde(rename = "create")]
+    #[strum(serialize = "create")]
+    Create,
+    #[serde(rename = "delete")]
+    #[strum(serialize = "delete")]
+    Delete,
+}
+
 /// All platforms supported by ProofService
 #[derive(Serialize, Deserialize, Clone, Display, EnumString, Eq, PartialEq)]
 pub enum Platform {
