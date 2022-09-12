@@ -2,8 +2,8 @@
 
 ### Components supported
 
-- [ProofService](https://docs.next.id/proof-service/ps-intro)
-- [KVService](https://docs.next.id/kv-service/kv-intro)
+- [x] [ProofService](https://docs.next.id/proof-service/ps-intro)
+- [ ] [KVService](https://docs.next.id/kv-service/kv-intro)
 
 ### Usage
 
@@ -25,4 +25,11 @@ async fn main() -> Result<()> {
 
 ##### Submit a ProofChain modification to ProofService server.
 
-See [examples/procedure.rs](./examples/procedure.rs).
+Run `cargo run --example procedure` to play an interactive demo.
+
+See [examples/procedure.rs](./examples/procedure.rs) for more info.
+
+
+#### Misc
+
+You may find many useful functions under [`nextid_sdk::util`](./src/util/mod.rs) namespaces.
