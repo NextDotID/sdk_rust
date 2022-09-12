@@ -11,7 +11,11 @@ pub enum Error {
     #[error("Remote server error: {0}")]
     ServerError(String),
     #[error("Error when parsing body: {0}")]
-    ParsingError(#[from] serde_json::Error),
+    JSONParsingError(#[from] serde_json::Error),
+    #[error("Error when parsing URL: {0}")]
+    URLParsingError(#[from] url::ParseError),
+    #[error("Error when parsing int from string: {0}")]
+    ParseIntError(#[from] std::num::ParseIntError),
 }
 
 pub type Result<T> = core::result::Result<T, Error>;

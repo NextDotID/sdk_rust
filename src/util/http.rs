@@ -4,7 +4,12 @@ use hyper::{body::HttpBody, client::HttpConnector, Body, Client, Method, Request
 use hyper_tls::HttpsConnector;
 use serde::Deserialize;
 
-pub async fn request<T>(method: Method, uri: http::Uri, request_body: Body) -> Result<T>
+#[derive(Deserialize)]
+pub struct ErrorResponse {
+    pub message: String,
+}
+
+pub async fn request<T>(method: Method, uri: &url::Url, request_body: Body) -> Result<T>
 where
     T: for<'de> Deserialize<'de>,
 {
@@ -13,7 +18,7 @@ where
         .request(
             Request::builder()
                 .method(method)
-                .uri(uri)
+                .uri(uri.to_string().parse::<http::Uri>().unwrap())
                 .header("Accept", "application/json")
                 .header("Content-Type", "application/json")
                 .header("User-Agent", "NextID-SDK-Rust/0.1.0")
@@ -25,8 +30,9 @@ where
         .into_iter()
         .all(|status| status != response.status())
     {
-        // TODO: Provide more error info here
-        return Err(Error::ServerError(format!("Status: {}", response.status())));
+        // TODO: Change this `println` into `error!()` logger here.
+        let body: ErrorResponse = parse_body(&mut response).await?;
+        return Err(Error::ServerError(format!("Status: {}, Error: {}", response.status(), body.message)));
     }
 
     parse_body(&mut response).await
