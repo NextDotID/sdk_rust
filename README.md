@@ -9,6 +9,7 @@
 
 #### ProofService
 
+##### Find binding records by given platform and identity.
 ```rust
 use sdk_rust::{proof_service::Endpoint, types::Result};
 
@@ -19,6 +20,9 @@ async fn main() -> Result<()> {
   // let ps = Endpoint::Custom("https://my-proof-service.example.com".to_string());
 
   let avatars = ps.find_by("twitter", "yeiwb", 1).await?;
-
 }
 ```
+
+##### Submit a ProofChain modification to ProofService server.
+
+See [examples/procedure.rs](./examples/procedure.rs).

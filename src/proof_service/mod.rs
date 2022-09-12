@@ -2,7 +2,7 @@ mod procedure;
 mod types;
 pub use self::types::Action;
 pub use self::types::Platform;
-pub use procedure::{ProcedureStatus, ProofProcedure};
+pub use procedure::ProofProcedure;
 
 use self::types::Avatar;
 use crate::{types::Result, util::http::request};

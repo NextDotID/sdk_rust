@@ -4,6 +4,11 @@ use hyper::{body::HttpBody, client::HttpConnector, Body, Client, Method, Request
 use hyper_tls::HttpsConnector;
 use serde::Deserialize;
 
+#[derive(Deserialize)]
+pub struct ErrorResponse {
+    pub message: String,
+}
+
 pub async fn request<T>(method: Method, uri: &url::Url, request_body: Body) -> Result<T>
 where
     T: for<'de> Deserialize<'de>,
@@ -25,8 +30,9 @@ where
         .into_iter()
         .all(|status| status != response.status())
     {
-        // TODO: Provide more error info here
-        return Err(Error::ServerError(format!("Status: {}", response.status())));
+        // TODO: Change this `println` into `error!()` logger here.
+        let body: ErrorResponse = parse_body(&mut response).await?;
+        return Err(Error::ServerError(format!("Status: {}, Error: {}", response.status(), body.message)));
     }
 
     parse_body(&mut response).await

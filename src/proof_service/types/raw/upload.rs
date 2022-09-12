@@ -31,7 +31,7 @@ pub struct Request {
 
 #[derive(Serialize)]
 pub struct RequestExtra {
-    pub signature: String,
+    pub signature: Option<String>,
     pub wallet_signature: Option<String>,
 }
 

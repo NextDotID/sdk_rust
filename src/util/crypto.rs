@@ -9,7 +9,7 @@ pub struct Secp256k1KeyPair {
     /// Public key
     pub pk: PublicKey,
     /// Secret key. May be missing in verifying signature scenario.
-    sk: Option<SecretKey>,
+    pub sk: Option<SecretKey>,
 }
 
 impl Secp256k1KeyPair {
@@ -147,7 +147,7 @@ impl Secp256k1KeyPair {
     /// Signs `keccak256(message)`.
     /// Returns raw signature (r + s + v, 65-bytes).
     pub fn hashed_sign(&self, message: &str) -> Result<Vec<u8>> {
-        if self.sk.is_none() {
+        if !self.has_sk() {
             return Err(Error::Secp256k1Error(libsecp256k1::Error::InvalidSecretKey));
         }
 
@@ -214,5 +214,17 @@ impl Secp256k1KeyPair {
         )?;
 
         Ok(Self { pk, sk: None })
+    }
+
+    /// Returns if this keypair has secret key inside.
+    /// # Examples
+    /// ```rust
+    /// # use nextid_sdk::util::{crypto::Secp256k1KeyPair};
+    /// # let mut rng = rand::rngs::OsRng;
+    /// let keypair = Secp256k1KeyPair::generate(&mut rng);
+    /// assert!(keypair.has_sk());
+    /// ```
+    pub fn has_sk(&self) -> bool {
+        self.sk.is_some()
     }
 }

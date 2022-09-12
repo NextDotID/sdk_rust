@@ -16,20 +16,6 @@ use chrono::NaiveDateTime;
 use http::Method;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use strum_macros::Display;
-
-/// FST of ProofChain modification procedure.
-#[derive(Display, PartialEq, Eq)]
-pub enum ProcedureStatus {
-    /// Just created, haven't communicate with ProofService.
-    Created,
-    /// Asked ProofService for sign payload, waiting for signature generated.
-    PayloadGenerated,
-    /// Signature is set, haven't post it to ProofService.
-    Signed,
-    /// ProofService accepted this modification.
-    Committed,
-}
 
 #[derive(Serialize, Deserialize)]
 pub struct ProofPayloadExtra {
@@ -40,9 +26,6 @@ pub struct ProofPayloadExtra {
 
 /// ProofChain modification procedure instance.
 pub struct ProofProcedure {
-    /// Workss as an FST: Which step now?
-    pub status: ProcedureStatus,
-
     pub endpoint: Endpoint,
     pub action: Action,
     pub avatar: Secp256k1KeyPair,
@@ -81,7 +64,6 @@ impl ProofProcedure {
         identity: &str,
     ) -> Self {
         Self {
-            status: ProcedureStatus::Created,
             endpoint,
             action,
             avatar,
@@ -99,7 +81,6 @@ impl ProofProcedure {
 
     /// Request for signature payloads and post content from ProofService.
     /// Will fill `self`'s `sign_payload`, `post_content`, `uuid` and `created_at`.
-    /// And change `self.status` to [PayloadGenerated](ProcedureStatus::PayloadGenerated).
     /// # Examples
     /// ```rust
     /// # #[tokio::main]
@@ -110,18 +91,11 @@ impl ProofProcedure {
     /// # let mut rng = rand::rngs::OsRng;
     /// # let avatar = Secp256k1KeyPair::generate(&mut rng);
     /// let mut procedure = ProofProcedure::new(Endpoint::Staging, Action::Create, avatar, Platform::Twitter, "example");
-    /// assert_eq!((), procedure.payload().await.unwrap());
+    /// assert_eq!((), procedure.get_payload().await.unwrap());
     /// # assert!(procedure.sign_payload.unwrap().len() > 0)
     /// # }
     /// ```
     pub async fn get_payload(&mut self) -> Result<()> {
-        if self.status != ProcedureStatus::Created {
-            return Err(Error::ServerError(format!(
-                "ProofProcedure.payload(): status should be `Created`. Current: {}",
-                self.status
-            )));
-        }
-
         let url = self
             .endpoint
             .uri::<Vec<(String, String)>, _, _>("v1/proof/payload", vec![])?;
@@ -139,7 +113,6 @@ impl ProofProcedure {
         )
         .await?;
 
-        self.status = ProcedureStatus::PayloadGenerated;
         self.uuid = Some(response.uuid);
         self.created_at = Some(util::ts_string_to_naive(&response.created_at)?);
         self.sign_payload = Some(response.sign_payload.clone());
@@ -211,13 +184,16 @@ impl ProofProcedure {
                 .expect("creatd_at must be available.")
                 .timestamp()
                 .to_string(),
-            extra: UploadExtra {
-                wallet_signature: if self.platform == Platform::Ethereum {
-                    Some(base64_encode(&ethereum_signature.unwrap()))
-                } else {
-                    None
-                },
-                signature: base64_encode(&self.signature.clone().unwrap()),
+            extra: if self.platform == Platform::Ethereum {
+                UploadExtra {
+                    wallet_signature: Some(base64_encode(&ethereum_signature.unwrap())),
+                    signature: Some(base64_encode(&self.signature.clone().unwrap())),
+                }
+            } else {
+                UploadExtra{
+                    wallet_signature: None,
+                    signature: None,
+                }
             },
         };
         request::<UploadResponse>(
