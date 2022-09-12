@@ -7,6 +7,7 @@ mod tests;
 
 use crate::types::Result;
 use chrono::NaiveDateTime;
+use libsecp256k1::PublicKey;
 use sha3::{Digest, Keccak256};
 
 /// Encode a byte slice into hexstring (`[a-f0-9]+`).
@@ -81,7 +82,7 @@ pub fn base64_decode(base64_string: &str) -> Result<Vec<u8>> {
 /// let expected: [u8; 32] = hex!("504AF7475B7341893F803C8EBABFBAEA60EAE7B6A42CB006960C3FDB14DCF8AD");
 /// assert_eq!(result, expected);
 /// ```
-pub fn keccak256_hash(message: &str) -> [u8; 32] {
+pub fn keccak256_hash(message: impl AsRef<[u8]>) -> [u8; 32] {
     let mut hasher = Keccak256::default();
     hasher.update(message);
     hasher.finalize().into()
@@ -103,4 +104,23 @@ pub fn ts_string_to_naive(timestamp: &str) -> Result<NaiveDateTime> {
 /// Convert timestamp into NaiveDateTime struct.
 pub fn ts_to_naive(seconds: i64, ms: u32) -> NaiveDateTime {
     NaiveDateTime::from_timestamp(seconds, ms * 1000000)
+}
+
+/// Generate Ethereum address from a secp256k1 public key.
+/// Examples
+/// ```rust
+/// # use nextid_sdk::util::crypto::Secp256k1KeyPair;
+/// # use nextid_sdk::util::eth_address_from_public_key;
+/// # use hex_literal::hex;
+/// # let keypair = Secp256k1KeyPair::from_pk_hex("0x04ca9b4078fbf0bc6d68999d8dc770c6d8c919ee80885fa6beec00541e22c47761fe4f48a5ecfba9541250cd98ea5087050ee5715bd3afe2b8480460b1c7f724cb").unwrap();
+/// let address = eth_address_from_public_key(&keypair.pk);
+/// let expected = hex!("1F4F4108C8FA5D307520D407CD1C2B08ACC391B2");
+/// assert_eq!(expected, address);
+/// ```
+pub fn eth_address_from_public_key(pubkey: &PublicKey) -> [u8; 20] {
+    let mut address = [0u8; 20];
+    let pubkey_hash = keccak256_hash(&pubkey.serialize()[1..]); // Omit 0x04 / 0x03 pubkey type indicator.
+    address.copy_from_slice(&pubkey_hash[12..]);
+
+    address
 }
