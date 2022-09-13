@@ -32,7 +32,11 @@ where
     {
         // TODO: Change this `println` into `error!()` logger here.
         let body: ErrorResponse = parse_body(&mut response).await?;
-        return Err(Error::ServerError(format!("Status: {}, Error: {}", response.status(), body.message)));
+        return Err(Error::ServerError(format!(
+            "Status: {}, Error: {}",
+            response.status(),
+            body.message
+        )));
     }
 
     parse_body(&mut response).await

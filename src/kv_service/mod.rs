@@ -1,4 +1,7 @@
+mod procedure;
 mod types;
+
+pub use procedure::KVProcedure;
 
 use self::types::raw::QueryResponse;
 use self::types::{KVAvatar, KVSingleProof};
@@ -16,10 +19,10 @@ use url::Url;
 #[derive(Debug, Clone)]
 pub enum Endpoint {
     /// NextID production server
-    /// https://proof-service.next.id
+    /// https://kv-service.next.id
     Production,
     /// NextID staging server
-    /// https://proof-service.nextnext.id
+    /// https://kv-service.nextnext.id
     Staging,
     /// Custom server (with full URL to the root of the server)
     Custom(String),

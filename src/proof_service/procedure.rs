@@ -190,7 +190,7 @@ impl ProofProcedure {
                     signature: Some(base64_encode(&self.signature.clone().unwrap())),
                 }
             } else {
-                UploadExtra{
+                UploadExtra {
                     wallet_signature: None,
                     signature: None,
                 }
