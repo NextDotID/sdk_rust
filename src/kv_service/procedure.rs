@@ -3,13 +3,16 @@ use http::Method;
 use serde_json::Value;
 
 use super::{
-    types::raw::{PayloadRequest, PayloadResponse},
+    types::{
+        raw::{PayloadRequest, PayloadResponse, QueryResponse, UploadRequest},
+        KVSingleProof,
+    },
     Endpoint,
 };
 use crate::{
     proof_service::{Action, Platform},
-    types::Result,
-    util::{crypto::Secp256k1KeyPair, hex_encode, http::request, ts_to_naive},
+    types::{Error, Result},
+    util::{base64_encode, crypto::Secp256k1KeyPair, hex_encode, http::request, ts_to_naive},
 };
 
 pub struct KVProcedure {
@@ -23,6 +26,7 @@ pub struct KVProcedure {
     created_at: Option<NaiveDateTime>,
     uuid: Option<String>,
     pub sign_payload: Option<String>,
+    signature: Option<Vec<u8>>,
 }
 
 impl KVProcedure {
@@ -45,6 +49,7 @@ impl KVProcedure {
             created_at: None,
             uuid: None,
             sign_payload: None,
+            signature: None,
         }
     }
 
@@ -87,5 +92,45 @@ impl KVProcedure {
         self.sign_payload = Some(response.sign_payload);
 
         Ok(())
+    }
+
+    /// Submit the KV patch to KVService.
+    /// If success, returns all KVs under this avatar.
+    pub async fn submit(&mut self, avatar_signature: Vec<u8>) -> Result<Vec<KVSingleProof>> {
+        // Valiadte signature locally before requesting.
+        let recovered = Secp256k1KeyPair::recover_from_personal_signature(
+            &avatar_signature,
+            self.sign_payload.as_ref().unwrap(),
+        )?;
+        if recovered.pk != self.avatar.pk {
+            return Err(Error::ServerError(
+                "KVProcedure.submit(): Pubkey recovered from signature mismatches `self.avatar`."
+                    .into(),
+            ));
+        }
+        self.signature = Some(avatar_signature);
+
+        let url = self
+            .endpoint
+            .uri::<Vec<(String, String)>, _, _>("v1/kv", vec![])?;
+        let avatar = format!("0x{}", hex_encode(&self.avatar.pk.serialize_compressed()));
+        let signature = base64_encode(&self.signature.clone().unwrap());
+        let request_body = UploadRequest {
+            avatar: &avatar,
+            platform: &self.platform,
+            identity: &self.identity,
+            signature: &signature,
+            uuid: self.uuid.as_ref().unwrap(),
+            created_at: self.created_at.as_ref().unwrap().timestamp(),
+            patch: &self.patch,
+        };
+        let response: QueryResponse = request(
+            Method::POST,
+            &url,
+            serde_json::to_vec(&request_body)?.into(),
+        )
+        .await?;
+
+        Ok(response.proofs)
     }
 }

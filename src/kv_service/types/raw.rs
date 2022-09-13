@@ -35,3 +35,14 @@ pub struct PayloadResponse {
     pub sign_payload: String,
     pub created_at: i64,
 }
+
+#[derive(Serialize)]
+pub struct UploadRequest<'a> {
+    pub avatar: &'a str,
+    pub platform: &'a Platform,
+    pub identity: &'a str,
+    pub signature: &'a str,
+    pub uuid: &'a str,
+    pub created_at: i64,
+    pub patch: &'a Value,
+}
