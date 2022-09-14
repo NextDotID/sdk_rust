@@ -139,7 +139,7 @@ impl ProofProcedure {
             )?;
             if recovered.pk != self.avatar.pk {
                 return Err(Error::ServerError(
-                    "ProofProcedure.fill_signature(): Pubkey recovered from signature mismatches `self.avatar`.".into(),
+                    "ProofProcedure.submit(): Pubkey recovered from signature mismatches `self.avatar`.".into(),
                 ));
             }
             self.signature = avatar_signature;
@@ -147,7 +147,7 @@ impl ProofProcedure {
             // Validate ETH signature locally before requesting.
             if ethereum_signature.is_none() {
                 return Err(Error::ServerError(
-                    "ProofProcedure.fill_signature(): Ethereum wallet signature required.".into(),
+                    "ProofProcedure.submit(): Ethereum wallet signature required.".into(),
                 ));
             }
 
@@ -160,7 +160,7 @@ impl ProofProcedure {
             let recovered_address: Vec<u8> = eth_address_from_public_key(&recovered.pk).into();
             if expected_address != recovered_address {
                 return Err(Error::ServerError(format!(
-                    "ProofProcedure.fill_signature(): Ethereum address and signatures mismatch."
+                    "ProofProcedure.submit(): Ethereum address and signatures mismatch."
                 )));
             }
             self.extra = Some(ProofPayloadExtra {
@@ -190,7 +190,7 @@ impl ProofProcedure {
                     signature: Some(base64_encode(&self.signature.clone().unwrap())),
                 }
             } else {
-                UploadExtra{
+                UploadExtra {
                     wallet_signature: None,
                     signature: None,
                 }
