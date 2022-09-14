@@ -130,43 +130,7 @@ impl ProofProcedure {
         ethereum_signature: Option<Vec<u8>>,
     ) -> Result<()> {
         self.proof_location = Some(proof_location);
-
-        if self.platform == Platform::Ethereum {
-            // Valiadte sig locally before requesting.
-            let recovered = Secp256k1KeyPair::recover_from_personal_signature(
-                avatar_signature.as_ref().unwrap(),
-                self.sign_payload.as_ref().unwrap(),
-            )?;
-            if recovered.pk != self.avatar.pk {
-                return Err(Error::ServerError(
-                    "ProofProcedure.submit(): Pubkey recovered from signature mismatches `self.avatar`.".into(),
-                ));
-            }
-            self.signature = avatar_signature;
-
-            // Validate ETH signature locally before requesting.
-            if ethereum_signature.is_none() {
-                return Err(Error::ServerError(
-                    "ProofProcedure.submit(): Ethereum wallet signature required.".into(),
-                ));
-            }
-
-            let eth_sig = ethereum_signature.clone().unwrap();
-            let recovered = Secp256k1KeyPair::recover_from_personal_signature(
-                &eth_sig,
-                &self.sign_payload.clone().unwrap(),
-            )?;
-            let expected_address = hex_decode(&self.identity)?;
-            let recovered_address: Vec<u8> = eth_address_from_public_key(&recovered.pk).into();
-            if expected_address != recovered_address {
-                return Err(Error::ServerError(format!(
-                    "ProofProcedure.submit(): Ethereum address and signatures mismatch."
-                )));
-            }
-            self.extra = Some(ProofPayloadExtra {
-                ethereum_wallet_signature: eth_sig.clone(),
-            });
-        }
+        let upload_extra = self.local_validate(avatar_signature, ethereum_signature)?;
 
         // Local validation passed. Requesting remote ProofService.
         let url = self
@@ -184,17 +148,7 @@ impl ProofProcedure {
                 .expect("creatd_at must be available.")
                 .timestamp()
                 .to_string(),
-            extra: if self.platform == Platform::Ethereum {
-                UploadExtra {
-                    wallet_signature: Some(base64_encode(&ethereum_signature.unwrap())),
-                    signature: Some(base64_encode(&self.signature.clone().unwrap())),
-                }
-            } else {
-                UploadExtra {
-                    wallet_signature: None,
-                    signature: None,
-                }
-            },
+            extra: upload_extra,
         };
         request::<UploadResponse>(
             Method::POST,
@@ -204,5 +158,57 @@ impl ProofProcedure {
         .await?;
 
         Ok(())
+    }
+
+    /// Validate signature locally (if we can).
+    fn local_validate(
+        &mut self,
+        avatar_signature: Option<Vec<u8>>,
+        ethereum_signature: Option<Vec<u8>>,
+    ) -> Result<UploadExtra> {
+        if self.platform != Platform::Ethereum {
+            return Ok(UploadExtra {
+                signature: None,
+                wallet_signature: None,
+            });
+        }
+        // Valiadte sig locally before requesting.
+        let recovered = Secp256k1KeyPair::recover_from_personal_signature(
+            avatar_signature.as_ref().unwrap(),
+            self.sign_payload.as_ref().unwrap(),
+        )?;
+        if recovered.pk != self.avatar.pk {
+            return Err(Error::ServerError(
+                "ProofProcedure.submit(): Pubkey recovered from signature mismatches `self.avatar`.".into(),
+            ));
+        }
+        self.signature = avatar_signature;
+
+        // Validate ETH signature locally before requesting.
+        if ethereum_signature.is_none() {
+            return Err(Error::ServerError(
+                "ProofProcedure.submit(): Ethereum wallet signature required.".into(),
+            ));
+        }
+
+        let eth_sig = ethereum_signature.clone().unwrap();
+        let recovered = Secp256k1KeyPair::recover_from_personal_signature(
+            &eth_sig,
+            &self.sign_payload.clone().unwrap(),
+        )?;
+        let expected_address = hex_decode(&self.identity)?;
+        let recovered_address: Vec<u8> = eth_address_from_public_key(&recovered.pk).into();
+        if expected_address != recovered_address {
+            return Err(Error::ServerError(format!(
+                "ProofProcedure.submit(): Ethereum address and signatures mismatch."
+            )));
+        }
+        self.extra = Some(ProofPayloadExtra {
+            ethereum_wallet_signature: eth_sig.clone(),
+        });
+        Ok(UploadExtra {
+            wallet_signature: Some(base64_encode(&self.extra.as_ref().unwrap().ethereum_wallet_signature)),
+            signature: Some(base64_encode(self.signature.as_ref().unwrap())),
+        })
     }
 }
