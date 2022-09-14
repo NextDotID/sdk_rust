@@ -7,6 +7,12 @@
 
 ### Usage
 
+In `Cargo.toml` :
+```toml
+[dependencies]
+nextid_sdk = "1.0.0-rc1"
+```
+
 #### ProofService
 
 ##### Find binding records by given platform and identity.
@@ -26,7 +32,7 @@ async fn main() -> Result<()> {
 
 ##### Submit a ProofChain modification to ProofService server.
 
-Run `cargo run --example procedure` to play an interactive demo.
+Run `cargo run --example proof_procedure` to play an interactive demo.
 
 See [examples/proof_procedure.rs](./examples/proof_procedure.rs) for more info.
 
@@ -71,6 +77,8 @@ async fn main() -> Result<()> {
 ```
 
 ##### Submit a KV modification to remote KVService server.
+
+Run `cargo run --example kv_procedure` to play an interactive demo.
 
 See [examples/kv_procedure.rs](./examples/kv_procedure.rs)
 
