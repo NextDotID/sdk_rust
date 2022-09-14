@@ -122,7 +122,9 @@ impl ProofProcedure {
     }
 
     /// Submit this ProofChain modification to ProofService.
-    /// If `self.platform == Ethereum`, `avatar_signature` and `ethereum_signature` must be provided. Otherwise, leave these `None`.
+    /// If `self.platform == Ethereum && self.action == Create`, `avatar_signature` and `ethereum_signature` must both be provided.
+    /// If `self.platform == Ethereum && self.action == Delete`, either of `avatar_signature` or `ethereum_signature` should be provided.
+    /// Otherwise, leave these `None`.
     pub async fn submit(
         &mut self,
         proof_location: String,
@@ -142,10 +144,13 @@ impl ProofProcedure {
             identity: self.identity.clone(),
             proof_location: self.proof_location.clone().unwrap(),
             public_key: hex_encode(&self.avatar.pk.serialize_compressed()),
-            uuid: self.uuid.clone().expect("UUID must be available."),
+            uuid: self
+                .uuid
+                .clone()
+                .expect("UUID must be available at this moment."),
             created_at: self
                 .created_at
-                .expect("creatd_at must be available.")
+                .expect("creatd_at must be available at this moment.")
                 .timestamp()
                 .to_string(),
             extra: upload_extra,
@@ -166,32 +171,73 @@ impl ProofProcedure {
         avatar_signature: Option<Vec<u8>>,
         ethereum_signature: Option<Vec<u8>>,
     ) -> Result<UploadExtra> {
+        // Local validation only make sense on Platform::Ethereum.
         if self.platform != Platform::Ethereum {
             return Ok(UploadExtra {
                 signature: None,
                 wallet_signature: None,
             });
         }
-        // Valiadte sig locally before requesting.
+
+        match self.action {
+            Action::Create => {
+                // For creation, both of the signatures are needed.
+                // Valiadte avatar sig locally before requesting.
+                self.local_validate_avatar_sig(avatar_signature.as_ref())
+                    .and(self.local_validate_eth_sig(ethereum_signature.as_ref()))?;
+            }
+            Action::Delete => {
+                // For Ethereum deletion, only one of the valid signature provided should be OK.
+                self.local_validate_avatar_sig(avatar_signature.as_ref())
+                    .or(self.local_validate_eth_sig(ethereum_signature.as_ref()))?;
+            }
+        }
+
+        // If success, modify myself.
+        self.signature = avatar_signature;
+        self.extra = Some(ProofPayloadExtra {
+            ethereum_wallet_signature: ethereum_signature.unwrap(),
+        });
+        Ok(UploadExtra {
+            wallet_signature: self
+                .extra
+                .as_ref()
+                .map(|e| base64_encode(&e.ethereum_wallet_signature)),
+            signature: self.signature.as_ref().map(|sig| base64_encode(sig)),
+        })
+    }
+
+    /// Validate avatar signature.
+    fn local_validate_avatar_sig(&self, avatar_signature: Option<&Vec<u8>>) -> Result<()> {
+        if avatar_signature.is_none() {
+            return Err(Error::ServerError(
+                "ProofProcedure.local_validate_avatar_sig(): Avatar signature required.".into(),
+            ));
+        }
+
         let recovered = Secp256k1KeyPair::recover_from_personal_signature(
-            avatar_signature.as_ref().unwrap(),
+            avatar_signature.unwrap(),
             self.sign_payload.as_ref().unwrap(),
         )?;
         if recovered.pk != self.avatar.pk {
-            return Err(Error::ServerError(
-                "ProofProcedure.submit(): Pubkey recovered from signature mismatches `self.avatar`.".into(),
-            ));
+            Err(Error::ServerError(
+                "ProofProcedure.local_validate_avatar_sig(): Pubkey recovered from signature mismatches `self.avatar`.".into(),
+            ))
+        } else {
+            Ok(())
         }
-        self.signature = avatar_signature;
+    }
 
-        // Validate ETH signature locally before requesting.
+    /// Validate ethereum signature.
+    fn local_validate_eth_sig(&self, ethereum_signature: Option<&Vec<u8>>) -> Result<()> {
         if ethereum_signature.is_none() {
             return Err(Error::ServerError(
-                "ProofProcedure.submit(): Ethereum wallet signature required.".into(),
+                "ProofProcedure.local_validate_eth_sig(): Ethereum wallet signature required."
+                    .into(),
             ));
         }
 
-        let eth_sig = ethereum_signature.clone().unwrap();
+        let eth_sig = ethereum_signature.unwrap();
         let recovered = Secp256k1KeyPair::recover_from_personal_signature(
             &eth_sig,
             &self.sign_payload.clone().unwrap(),
@@ -199,16 +245,11 @@ impl ProofProcedure {
         let expected_address = hex_decode(&self.identity)?;
         let recovered_address: Vec<u8> = eth_address_from_public_key(&recovered.pk).into();
         if expected_address != recovered_address {
-            return Err(Error::ServerError(format!(
-                "ProofProcedure.submit(): Ethereum address and signatures mismatch."
-            )));
+            Err(Error::ServerError(format!(
+                "ProofProcedure.local_validate_eth_sig(): Ethereum address and signatures mismatch."
+            )))
+        } else {
+            Ok(())
         }
-        self.extra = Some(ProofPayloadExtra {
-            ethereum_wallet_signature: eth_sig.clone(),
-        });
-        Ok(UploadExtra {
-            wallet_signature: Some(base64_encode(&self.extra.as_ref().unwrap().ethereum_wallet_signature)),
-            signature: Some(base64_encode(self.signature.as_ref().unwrap())),
-        })
     }
 }

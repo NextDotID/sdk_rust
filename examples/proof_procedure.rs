@@ -1,5 +1,3 @@
-use std::ops::Deref;
-
 use nextid_sdk::{
     proof_service::{Action, Endpoint, Platform, ProofProcedure},
     types::Result,
