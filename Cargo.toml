@@ -15,16 +15,16 @@ thiserror = "1.0"
 # HTTP client
 # TODO: should not use "full" feature here: too heavy.
 hyper = { version = "0.14", features = ["full"] }
-hyper-tls = "*"
+hyper-tls = "0.5"
 tokio = { version = "1", features = ["full"] }
-http = "*"
+http = "0.2"
 url = "2"
 
 # Data structure related
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-strum = "*"
-strum_macros = "*"
+strum = "0.24"
+strum_macros = "0.24"
 chrono = "0.4"
 
 # Crypto
