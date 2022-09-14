@@ -4,33 +4,40 @@ use nextid_sdk::{
     util::{base64_encode, crypto::Secp256k1KeyPair, hex_encode},
 };
 
+fn gets() -> Option<String> {
+    let mut temp = String::new();
+    std::io::stdin()
+        .read_line(&mut temp)
+        .expect("Failed to read line");
+    if temp.trim().len() == 0 {
+        None
+    } else {
+        Some(temp.trim().to_string())
+    }
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     println!("Which twitter username you want to bind?");
-    let mut twitter_username = String::new();
-    std::io::stdin()
-        .read_line(&mut twitter_username)
-        .expect("Failed to read line");
-    twitter_username = twitter_username.trim().to_string();
+    let twitter_username = gets().expect("Twitter username must be provided.");
 
     println!("OK. Tell me your avatar public key:");
     let avatar: Secp256k1KeyPair;
-    let mut avatar_pubkey = String::new();
-    std::io::stdin()
-        .read_line(&mut avatar_pubkey)
-        .expect("Failed to read line");
-    if avatar_pubkey.trim().len() == 0 {
-        println!("Seems like you don't have an avatar yet. Let me generate one for you:");
-        let mut rng = rand::rngs::OsRng;
-        avatar = Secp256k1KeyPair::generate(&mut rng);
-        println!(
-            "Secret key: 0x{}",
-            hex_encode(&avatar.sk.as_ref().unwrap().serialize())
-        );
-    } else {
-        avatar = Secp256k1KeyPair::from_pk_hex(avatar_pubkey.trim())?;
+    match gets() {
+        None => {
+            println!("Seems like you don't have an avatar yet. Let me generate one for you:");
+            let mut rng = rand::rngs::OsRng;
+            avatar = Secp256k1KeyPair::generate(&mut rng);
+            println!(
+                "Secret key: 0x{}",
+                hex_encode(&avatar.sk.as_ref().unwrap().serialize())
+            );
+        }
+        Some(pubkey_hex) => {
+            avatar = Secp256k1KeyPair::from_pk_hex(&pubkey_hex)?;
+        }
     }
-    avatar_pubkey = format!("0x{}", hex_encode(&avatar.pk.serialize_compressed()))
+    let avatar_pubkey = format!("0x{}", hex_encode(&avatar.pk.serialize_compressed()))
         .trim()
         .to_string();
     println!("Public key: {}", avatar_pubkey);
@@ -77,13 +84,8 @@ async fn main() -> Result<()> {
     }
 
     println!("Done? Good, tell me the tweet ID user just posted. (VERY_LONG_DIGITS in https://twitter.com/my_twitter_username/status/VERY_LONG_DIGITS)\n");
-    let mut tweet_status_id = String::new();
-    std::io::stdin()
-        .read_line(&mut tweet_status_id)
-        .expect("Failed to read line");
-    procedure
-        .submit(tweet_status_id.trim().to_string(), None, None)
-        .await?;
+    let tweet_status_id = gets().expect("Tweet ID must be provided.");
+    procedure.submit(tweet_status_id, None, None).await?;
 
     println!("Done.");
 

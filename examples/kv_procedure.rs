@@ -6,33 +6,40 @@ use nextid_sdk::{
 };
 use serde_json::json;
 
+fn gets() -> Option<String> {
+    let mut temp = String::new();
+    std::io::stdin()
+        .read_line(&mut temp)
+        .expect("Failed to read line");
+    if temp.trim().len() == 0 {
+        None
+    } else {
+        Some(temp.trim().to_string())
+    }
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     println!("Which twitter username you want to set KV?");
-    let mut twitter_username = String::new();
-    std::io::stdin()
-        .read_line(&mut twitter_username)
-        .expect("Failed to read line");
-    twitter_username = twitter_username.trim().to_string();
+    let twitter_username = gets().expect("Twitter username must be provided.");
 
     println!("OK. Tell me your avatar public key:");
     let avatar: Secp256k1KeyPair;
-    let mut avatar_pubkey = String::new();
-    std::io::stdin()
-        .read_line(&mut avatar_pubkey)
-        .expect("Failed to read line");
-    if avatar_pubkey.trim().len() == 0 {
-        println!("Seems like you don't have an avatar yet. Let me generate one for you:");
-        let mut rng = rand::rngs::OsRng;
-        avatar = Secp256k1KeyPair::generate(&mut rng);
-        println!(
-            "Secret key: 0x{}",
-            hex_encode(&avatar.sk.as_ref().unwrap().serialize())
-        );
-    } else {
-        avatar = Secp256k1KeyPair::from_pk_hex(avatar_pubkey.trim())?;
+    match gets() {
+        None => {
+            println!("Seems like you don't have an avatar yet. Let me generate one for you:");
+            let mut rng = rand::rngs::OsRng;
+            avatar = Secp256k1KeyPair::generate(&mut rng);
+            println!(
+                "Secret key: 0x{}",
+                hex_encode(&avatar.sk.as_ref().unwrap().serialize())
+            );
+        }
+        Some(pubkey_hex) => {
+            avatar = Secp256k1KeyPair::from_pk_hex(&pubkey_hex)?;
+        }
     }
-    avatar_pubkey = format!("0x{}", hex_encode(&avatar.pk.serialize_compressed()))
+    let avatar_pubkey = format!("0x{}", hex_encode(&avatar.pk.serialize_compressed()))
         .trim()
         .to_string();
     println!("Public key: {}", avatar_pubkey);
@@ -56,10 +63,7 @@ async fn main() -> Result<()> {
     println!("First, make sure this twitter-avatar pair has binding record on ProofService staging server.");
     println!("Ask user to sign this using their avatar secret key using web3.eth.personal.sign() method:\n\n{}\n\n", procedure.sign_payload.as_ref().unwrap());
     println!("Done? Base64 this signature and paste it here:\n");
-    let mut base64_sig = String::new();
-    std::io::stdin()
-        .read_line(&mut base64_sig)
-        .expect("Failed to read line");
+    let base64_sig = gets().expect("Signature must be provided.");
     let sig = base64_decode(&base64_sig)?;
     procedure.submit(sig).await?;
     println!("Done.");
