@@ -44,6 +44,12 @@ pub enum Platform {
     #[serde(rename = "solana")]
     #[strum(serialize = "solana")]
     Solana,
+    #[serde(rename = "dns")]
+    #[strum(serialize = "dns")]
+    DNS,
+    #[serde(rename = "minds")]
+    #[strum(serialize = "minds")]
+    Minds,
 }
 
 /// Avatar record by query.
